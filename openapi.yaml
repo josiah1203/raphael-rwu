@@ -1,0 +1,12 @@
+openapi: 3.1.0
+info:
+  title: raphael-rwu
+  version: 0.1.0
+  description: Raphael Work Unit execution accounting, banking, allocation
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
