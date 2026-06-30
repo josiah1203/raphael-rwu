@@ -44,3 +44,17 @@ def consume(
     reason = body.get("reason", "usage")
     balance = _store.consume(x_raphael_org_id, amount, reason)
     return {"org_id": x_raphael_org_id, "consumed": amount, "balance": balance}
+
+
+@router.get("/daily")
+def get_daily_allocation(x_raphael_org_id: str = Header(default="org_default", alias="X-Raphael-Org-Id")) -> dict[str, Any]:
+    b = _store.balance(x_raphael_org_id)
+    daily_limit = float(os.environ.get("RAPHAEL_RWU_DAILY_LIMIT", "500"))
+    available = max(0.0, b["balance"] - b["reserved"])
+    ledger = _store.ledger_entries(x_raphael_org_id, limit=20)
+    return {
+        "org_id": x_raphael_org_id,
+        "daily_limit": daily_limit,
+        "available": available,
+        "ledger": ledger,
+    }

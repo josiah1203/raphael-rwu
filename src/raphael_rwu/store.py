@@ -60,6 +60,13 @@ class RWUStore:
             return pg_fetchone(self._adapt_table(sql), params)
         return self._conn.execute(sql, params).fetchone()
 
+    def fetchall(self, sql: str, params: tuple[Any, ...] = ()) -> list[Any]:
+        if self._postgres:
+            from raphael_contracts.db import pg_fetchall
+
+            return pg_fetchall(self._adapt_table(sql), params)
+        return self._conn.execute(sql, params).fetchall()
+
     @staticmethod
     def _adapt_table(sql: str) -> str:
         return sql.replace("balances", "rwu_balances").replace("ledger", "rwu_ledger")
@@ -93,3 +100,27 @@ class RWUStore:
             (org_id, -amount, reason, datetime.now(timezone.utc).isoformat()),
         )
         return self.balance(org_id)["balance"]
+
+    def ledger_entries(self, org_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        rows = self.fetchall(
+            "SELECT amount, reason, created_at FROM ledger WHERE org_id = ? ORDER BY id DESC LIMIT ?",
+            (org_id, limit),
+        )
+        if not rows:
+            return []
+        result = []
+        running = self.balance(org_id)["balance"]
+        for row in rows:
+            amount = float(row["amount"] if isinstance(row, dict) else row[0])
+            reason = row["reason"] if isinstance(row, dict) else row[1]
+            created = row["created_at"] if isinstance(row, dict) else row[2]
+            entry_type = "Credit" if amount > 0 else "Debit"
+            result.append({
+                "date": str(created)[:10],
+                "type": entry_type,
+                "amount": f"{amount:+.0f}",
+                "balance": f"{running:.0f}",
+                "description": reason or "RWU adjustment",
+            })
+            running -= amount
+        return result
